@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Maghreb Voices Lab - Call</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f3f4f6;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      padding: 20px;
+      text-align: center;
+    }
+    button {
+      padding: 10px 20px;
+      margin-top: 20px;
+      font-size: 16px;
+      background: #4f46e5;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #timer {
+      font-size: 2em;
+      margin: 20px 0;
+    }
+    audio {
+      margin-top: 20px;
+    }
+    #transcript {
+      margin-top: 20px;
+      padding: 10px;
+      background: white;
+      border-radius: 5px;
+      max-width: 600px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      text-align: left;
+    }
+  </style>
+</head>
+<body>
+  <h1>🕒 Maghreb Voices Lab - Call Room</h1>
+  <div id="timer">10:00</div>
+  <button onclick="startCall()">Start Call</button>
+  <audio id="player" controls></audio>
+  <div id="transcript"><strong>Transcript:</strong><br><span id="text"></span></div>
+
+  <script>
+    let mediaRecorder;
+    let audioChunks = [];
+    let countdown;
+
+    const transcriptText = document.getElementById("text");
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'ar-MA'; // Change as needed
+    recognition.interimResults = true;
+    let finalTranscript = '';
+
+    recognition.onresult = (event) => {
+      let interimTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript + ' ';
+        } else {
+          interimTranscript += event.results[i][0].transcript;
+        }
+      }
+      transcriptText.innerText = finalTranscript + interimTranscript;
+    };
+
+    function startCall() {
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.start();
+        recognition.start();
+
+        mediaRecorder.ondataavailable = event => {
+          audioChunks.push(event.data);
+        };
+
+        mediaRecorder.onstop = () => {
+          recognition.stop();
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          const audioUrl = URL.createObjectURL(audioBlob);
+          document.getElementById('player').src = audioUrl;
+        };
+
+        startTimer(600);
+      });
+    }
+
+    function startTimer(duration) {
+      let timer = duration;
+      const timerDisplay = document.getElementById('timer');
+
+      countdown = setInterval(() => {
+        const minutes = Math.floor(timer / 60);
+        const seconds = timer % 60;
+        timerDisplay.textContent = \`\${minutes}:\${seconds < 10 ? '0' + seconds : seconds}\`;
+        if (--timer < 0) {
+          clearInterval(countdown);
+          mediaRecorder.stop();
+        }
+      }, 1000);
+    }
+  </script>
+</body>
+</html>
